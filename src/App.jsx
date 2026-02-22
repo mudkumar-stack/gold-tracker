@@ -17,7 +17,6 @@ function App() {
   })
   const [alerts, setAlerts] = useState([])
   const [chartCurrency, setChartCurrency] = useState('USD')
-  const [chartPeriod, setChartPeriod] = useState('day')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [lastFetchTime, setLastFetchTime] = useState(null)
 
@@ -120,38 +119,17 @@ function App() {
     setAlerts(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Group history entries by period and average prices
+  // Build chart data: one point per day, averaged, oldest first
   const chartData = useMemo(() => {
     if (history.length === 0) return []
 
-    const getGroupKey = (entry) => {
-      const d = new Date(entry.timestamp || entry.date)
-      if (isNaN(d.getTime())) return null
-      switch (chartPeriod) {
-        case 'day':
-          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-        case 'week': {
-          // Get Monday of the week
-          const day = d.getDay()
-          const monday = new Date(d)
-          monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-          return `Week ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-        }
-        case 'month':
-          return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        case 'year':
-          return d.getFullYear().toString()
-        default:
-          return d.toLocaleDateString()
-      }
-    }
-
-    // Group entries
+    // Group by date (day level)
     const groups = {}
     const groupOrder = []
     ;[...history].reverse().forEach(entry => {
-      const key = getGroupKey(entry)
-      if (!key) return
+      const d = new Date(entry.timestamp || entry.date)
+      if (isNaN(d.getTime())) return
+      const key = d.toISOString().slice(0, 10) // YYYY-MM-DD
       if (!groups[key]) {
         groups[key] = []
         groupOrder.push(key)
@@ -159,17 +137,31 @@ function App() {
       groups[key].push(entry)
     })
 
-    // Average each group
+    // Average each day and format label based on data span
+    const totalDays = groupOrder.length
     return groupOrder.map(key => {
       const entries = groups[key]
       const avg = (arr, field) => arr.reduce((sum, e) => sum + Number(e[field] || 0), 0) / arr.length
-      if (chartCurrency === 'USD') {
-        return { time: key, gold: avg(entries, 'goldUsd'), silver: avg(entries, 'silverUsd') }
+      const d = new Date(key)
+      // Smart label: show day for short spans, month for longer, year for very long
+      let label
+      if (totalDays <= 14) {
+        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      } else if (totalDays <= 90) {
+        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      } else if (totalDays <= 365) {
+        label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
       } else {
-        return { time: key, gold: avg(entries, 'goldInr'), silver: avg(entries, 'silverInr') }
+        label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+      }
+
+      if (chartCurrency === 'USD') {
+        return { time: label, gold: avg(entries, 'goldUsd'), silver: avg(entries, 'silverUsd') }
+      } else {
+        return { time: label, gold: avg(entries, 'goldInr'), silver: avg(entries, 'silverInr') }
       }
     })
-  }, [history, chartCurrency, chartPeriod])
+  }, [history, chartCurrency])
 
   return (
     <div className="app">
@@ -268,15 +260,6 @@ function App() {
           <section className="chart-section">
             <h2>Price Movement</h2>
             <div className="chart-controls">
-              <div className="chart-tabs">
-                {['day', 'week', 'month', 'year'].map(p => (
-                  <button
-                    key={p}
-                    className={`chart-tab ${chartPeriod === p ? 'active' : ''}`}
-                    onClick={() => setChartPeriod(p)}
-                  >{p.charAt(0).toUpperCase() + p.slice(1)}</button>
-                ))}
-              </div>
               <div className="chart-tabs">
                 <button
                   className={`chart-tab ${chartCurrency === 'USD' ? 'active' : ''}`}
