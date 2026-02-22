@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import './App.css'
 
 // ⬇️ Your GoldAPI key
@@ -17,6 +17,8 @@ function App() {
   })
   const [alerts, setAlerts] = useState([])
   const [chartCurrency, setChartCurrency] = useState('USD')
+  const [chartMetal, setChartMetal] = useState('gold')
+  const [chartPeriod, setChartPeriod] = useState('1D')
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [lastFetchTime, setLastFetchTime] = useState(null)
 
@@ -119,49 +121,43 @@ function App() {
     setAlerts(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Build chart data: one point per day, averaged, oldest first
+  // Build chart data filtered by period, one point per fetch, oldest first
   const chartData = useMemo(() => {
     if (history.length === 0) return []
 
-    // Group by date (day level)
-    const groups = {}
-    const groupOrder = []
-    ;[...history].reverse().forEach(entry => {
-      const d = new Date(entry.timestamp || entry.date)
-      if (isNaN(d.getTime())) return
-      const key = d.toISOString().slice(0, 10) // YYYY-MM-DD
-      if (!groups[key]) {
-        groups[key] = []
-        groupOrder.push(key)
-      }
-      groups[key].push(entry)
-    })
+    const now = new Date()
+    let cutoff
+    switch (chartPeriod) {
+      case '1D': cutoff = new Date(now - 24 * 60 * 60 * 1000); break
+      case '1W': cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000); break
+      case '1M': cutoff = new Date(now - 30 * 24 * 60 * 60 * 1000); break
+      case '3M': cutoff = new Date(now - 90 * 24 * 60 * 60 * 1000); break
+      default: cutoff = new Date(0)
+    }
 
-    // Average each day and format label based on data span
-    const totalDays = groupOrder.length
-    return groupOrder.map(key => {
-      const entries = groups[key]
-      const avg = (arr, field) => arr.reduce((sum, e) => sum + Number(e[field] || 0), 0) / arr.length
-      const d = new Date(key)
-      // Smart label: show day for short spans, month for longer, year for very long
-      let label
-      if (totalDays <= 14) {
-        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      } else if (totalDays <= 90) {
-        label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      } else if (totalDays <= 365) {
-        label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-      } else {
-        label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-      }
+    const field = chartMetal === 'gold'
+      ? (chartCurrency === 'USD' ? 'goldUsd' : 'goldInr')
+      : (chartCurrency === 'USD' ? 'silverUsd' : 'silverInr')
 
-      if (chartCurrency === 'USD') {
-        return { time: label, gold: avg(entries, 'goldUsd'), silver: avg(entries, 'silverUsd') }
-      } else {
-        return { time: label, gold: avg(entries, 'goldInr'), silver: avg(entries, 'silverInr') }
-      }
-    })
-  }, [history, chartCurrency])
+    return [...history]
+      .reverse()
+      .filter(entry => {
+        const d = new Date(entry.timestamp || entry.date)
+        return !isNaN(d.getTime()) && d >= cutoff
+      })
+      .map(entry => {
+        const d = new Date(entry.timestamp || entry.date)
+        let label
+        if (chartPeriod === '1D') {
+          label = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        } else if (chartPeriod === '1W') {
+          label = d.toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+        } else {
+          label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        }
+        return { time: label, value: Number(entry[field]) }
+      })
+  }, [history, chartCurrency, chartMetal, chartPeriod])
 
   return (
     <div className="app">
@@ -258,9 +254,18 @@ function App() {
         {/* Price Movement Chart */}
         {history.length >= 2 && (
           <section className="chart-section">
-            <h2>Price Movement</h2>
-            <div className="chart-controls">
-              <div className="chart-tabs">
+            <div className="chart-header">
+              <div className="chart-metal-tabs">
+                <button
+                  className={`chart-metal-tab ${chartMetal === 'gold' ? 'active gold' : ''}`}
+                  onClick={() => setChartMetal('gold')}
+                >Gold</button>
+                <button
+                  className={`chart-metal-tab ${chartMetal === 'silver' ? 'active silver' : ''}`}
+                  onClick={() => setChartMetal('silver')}
+                >Silver</button>
+              </div>
+              <div className="chart-currency-tabs">
                 <button
                   className={`chart-tab ${chartCurrency === 'USD' ? 'active' : ''}`}
                   onClick={() => setChartCurrency('USD')}
@@ -272,45 +277,65 @@ function App() {
               </div>
             </div>
             <div className="chart-container">
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <ResponsiveContainer width="100%" height={320}>
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradientGold" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ffd700" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#ffd700" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradientSilver" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#a0a0c0" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="#a0a0c0" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={true} />
                   <XAxis
                     dataKey="time"
-                    stroke="#888"
-                    tick={{ fontSize: 11, fill: '#888' }}
+                    axisLine={false}
                     tickLine={false}
+                    tick={{ fontSize: 10, fill: '#666' }}
+                    interval="preserveStartEnd"
                   />
                   <YAxis
-                    yAxisId="gold"
-                    stroke="#ffd700"
-                    tick={{ fontSize: 11, fill: '#ffd700' }}
+                    axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => chartCurrency === 'USD' ? `$${(v/1000).toFixed(0)}k` : `₹${(v/100000).toFixed(0)}L`}
-                    label={{ value: 'Gold', angle: -90, position: 'insideLeft', fill: '#ffd700', fontSize: 12 }}
-                  />
-                  <YAxis
-                    yAxisId="silver"
-                    orientation="right"
-                    stroke="#c0c0c0"
-                    tick={{ fontSize: 11, fill: '#c0c0c0' }}
-                    tickLine={false}
-                    tickFormatter={(v) => chartCurrency === 'USD' ? `$${v.toFixed(0)}` : `₹${(v/1000).toFixed(0)}k`}
-                    label={{ value: 'Silver', angle: 90, position: 'insideRight', fill: '#c0c0c0', fontSize: 12 }}
+                    tick={{ fontSize: 10, fill: '#666' }}
+                    tickFormatter={(v) => chartCurrency === 'USD' ? `$${v >= 1000 ? (v/1000).toFixed(1) + 'k' : v.toFixed(0)}` : `₹${v >= 100000 ? (v/100000).toFixed(1) + 'L' : v >= 1000 ? (v/1000).toFixed(0) + 'k' : v.toFixed(0)}`}
+                    domain={['auto', 'auto']}
+                    width={60}
                   />
                   <Tooltip
-                    contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 8 }}
-                    labelStyle={{ color: '#ffd700' }}
-                    formatter={(value, name) => [
-                      chartCurrency === 'USD' ? `$${Number(value).toFixed(2)}` : `₹${Number(value).toFixed(2)}`,
-                      name
+                    contentStyle={{ background: 'rgba(26,26,46,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 13 }}
+                    labelStyle={{ color: '#999', fontSize: 11 }}
+                    formatter={(value) => [
+                      chartCurrency === 'USD' ? `$${Number(value).toLocaleString('en-US', {minimumFractionDigits: 2})}` : `₹${Number(value).toLocaleString('en-IN', {minimumFractionDigits: 2})}`,
+                      chartMetal === 'gold' ? 'Gold' : 'Silver'
                     ]}
                   />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line yAxisId="gold" type="monotone" dataKey="gold" stroke="#ffd700" strokeWidth={2} dot={{ r: 4, fill: '#ffd700' }} activeDot={{ r: 6 }} />
-                  <Line yAxisId="silver" type="monotone" dataKey="silver" stroke="#c0c0c0" strokeWidth={2} dot={{ r: 4, fill: '#c0c0c0' }} activeDot={{ r: 6 }} />
-                </LineChart>
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke={chartMetal === 'gold' ? '#ffd700' : '#8888cc'}
+                    strokeWidth={2}
+                    fill={chartMetal === 'gold' ? 'url(#gradientGold)' : 'url(#gradientSilver)'}
+                    dot={false}
+                    activeDot={{ r: 4, stroke: chartMetal === 'gold' ? '#ffd700' : '#8888cc', strokeWidth: 2, fill: '#1a1a2e' }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
+            </div>
+            <div className="chart-period-bar">
+              <span className="chart-period-label">{chartMetal === 'gold' ? 'MCX Gold' : 'MCX Silver'}</span>
+              <div className="chart-period-tabs">
+                {['1D', '1W', '1M', '3M'].map(p => (
+                  <button
+                    key={p}
+                    className={`period-tab ${chartPeriod === p ? 'active' : ''}`}
+                    onClick={() => setChartPeriod(p)}
+                  >{p}</button>
+                ))}
+              </div>
             </div>
           </section>
         )}

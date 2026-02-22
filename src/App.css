@@ -247,60 +247,128 @@
 
 /* Chart Section */
 .chart-section {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 20px 20px 0;
   margin-bottom: 24px;
+  overflow: hidden;
 }
 
-.chart-section h2 {
-  margin: 0 0 12px;
-  font-size: 1.2rem;
-  color: #ffd700;
-}
-
-.chart-controls {
+.chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
-.chart-tabs {
+.chart-metal-tabs {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.chart-metal-tab {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: transparent;
+  color: #666;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-metal-tab.active.gold {
+  background: rgba(255, 215, 0, 0.12);
+  color: #ffd700;
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.chart-metal-tab.active.silver {
+  background: rgba(192, 192, 192, 0.12);
+  color: #c0c0c0;
+  border-color: rgba(192, 192, 192, 0.3);
+}
+
+.chart-metal-tab:hover:not(.active) {
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chart-currency-tabs {
+  display: flex;
+  gap: 4px;
 }
 
 .chart-tab {
-  padding: 6px 18px;
-  font-size: 0.85rem;
+  padding: 5px 14px;
+  font-size: 0.8rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.06);
-  color: #aaa;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  background: transparent;
+  color: #666;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .chart-tab.active {
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 179, 0, 0.1));
-  color: #ffd700;
-  border-color: rgba(255, 215, 0, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ddd;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .chart-tab:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ddd;
+  color: #aaa;
 }
 
 .chart-container {
   width: 100%;
-  min-height: 300px;
+  min-height: 320px;
+}
+
+/* Period bar at bottom of chart */
+.chart-period-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 4px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+}
+
+.chart-period-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #888;
+}
+
+.chart-period-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.period-tab {
+  padding: 6px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: transparent;
+  color: #666;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.period-tab.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.period-tab:hover:not(.active) {
+  color: #aaa;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .no-history {
