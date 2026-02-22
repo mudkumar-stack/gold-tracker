@@ -184,9 +184,15 @@
 }
 
 /* Buttons */
+.refresh-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
 .refresh-btn {
-  display: block;
-  margin: 0 auto 32px;
   padding: 12px 32px;
   font-size: 1rem;
   font-weight: 600;
@@ -196,6 +202,23 @@
   border-radius: 10px;
   cursor: pointer;
   transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.auto-refresh-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #aaa;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auto-refresh-toggle input {
+  accent-color: #ffd700;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .refresh-btn:hover:not(:disabled) {
@@ -220,6 +243,64 @@
   margin: 0 0 16px;
   font-size: 1.2rem;
   color: #ffd700;
+}
+
+/* Chart Section */
+.chart-section {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.chart-section h2 {
+  margin: 0 0 12px;
+  font-size: 1.2rem;
+  color: #ffd700;
+}
+
+.chart-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chart-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.chart-tab {
+  padding: 6px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaa;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.chart-tab.active {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 179, 0, 0.1));
+  color: #ffd700;
+  border-color: rgba(255, 215, 0, 0.4);
+}
+
+.chart-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ddd;
+}
+
+.chart-container {
+  width: 100%;
+  min-height: 300px;
 }
 
 .no-history {

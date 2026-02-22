@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import './App.css'
 
 // ⬇️ Your GoldAPI key
 const API_KEY = 'goldapi-w3hkrsmlxjm02i-io'
+const AUTO_REFRESH_MS = 5 * 60 * 1000 // Auto-refresh every 5 minutes
 
 function App() {
   const [goldPrice, setGoldPrice] = useState(null)
@@ -14,6 +16,10 @@ function App() {
     return saved ? JSON.parse(saved) : []
   })
   const [alerts, setAlerts] = useState([])
+  const [chartCurrency, setChartCurrency] = useState('USD')
+  const [chartPeriod, setChartPeriod] = useState('day')
+  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [lastFetchTime, setLastFetchTime] = useState(null)
 
   const USD_TO_INR = 83.5
   const OZ_PER_KG = 32.1507 // 1 kg = 32.1507 troy ounces
@@ -38,6 +44,7 @@ function App() {
 
       setGoldPrice(gold * OZ_PER_KG)
       setSilverPrice(silver * OZ_PER_KG)
+      setLastFetchTime(new Date())
 
       // Check for price change alerts
       const newAlerts = []
@@ -70,6 +77,7 @@ function App() {
       const goldKg = gold * OZ_PER_KG
       const silverKg = silver * OZ_PER_KG
       const entry = {
+        timestamp: new Date().toISOString(),
         date: new Date().toLocaleString(),
         goldUsd: goldKg,
         goldInr: (goldKg * USD_TO_INR).toFixed(2),
@@ -77,7 +85,7 @@ function App() {
         silverInr: (silverKg * USD_TO_INR).toFixed(2)
       }
       setHistory(prev => {
-        const updated = [entry, ...prev].slice(0, 10)
+        const updated = [entry, ...prev].slice(0, 1000)
         localStorage.setItem('metalPriceHistory', JSON.stringify(updated))
         return updated
       })
@@ -88,10 +96,20 @@ function App() {
     }
   }, [history])
 
+  // Initial fetch
   useEffect(() => {
     fetchPrices()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Auto-refresh interval
+  useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(() => {
+      fetchPrices()
+    }, AUTO_REFRESH_MS)
+    return () => clearInterval(interval)
+  }, [autoRefresh, fetchPrices])
 
   const clearHistory = () => {
     setHistory([])
@@ -101,6 +119,57 @@ function App() {
   const dismissAlert = (index) => {
     setAlerts(prev => prev.filter((_, i) => i !== index))
   }
+
+  // Group history entries by period and average prices
+  const chartData = useMemo(() => {
+    if (history.length === 0) return []
+
+    const getGroupKey = (entry) => {
+      const d = new Date(entry.timestamp || entry.date)
+      if (isNaN(d.getTime())) return null
+      switch (chartPeriod) {
+        case 'day':
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        case 'week': {
+          // Get Monday of the week
+          const day = d.getDay()
+          const monday = new Date(d)
+          monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+          return `Week ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+        }
+        case 'month':
+          return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+        case 'year':
+          return d.getFullYear().toString()
+        default:
+          return d.toLocaleDateString()
+      }
+    }
+
+    // Group entries
+    const groups = {}
+    const groupOrder = []
+    ;[...history].reverse().forEach(entry => {
+      const key = getGroupKey(entry)
+      if (!key) return
+      if (!groups[key]) {
+        groups[key] = []
+        groupOrder.push(key)
+      }
+      groups[key].push(entry)
+    })
+
+    // Average each group
+    return groupOrder.map(key => {
+      const entries = groups[key]
+      const avg = (arr, field) => arr.reduce((sum, e) => sum + Number(e[field] || 0), 0) / arr.length
+      if (chartCurrency === 'USD') {
+        return { time: key, gold: avg(entries, 'goldUsd'), silver: avg(entries, 'silverUsd') }
+      } else {
+        return { time: key, gold: avg(entries, 'goldInr'), silver: avg(entries, 'silverInr') }
+      }
+    })
+  }, [history, chartCurrency, chartPeriod])
 
   return (
     <div className="app">
@@ -170,16 +239,98 @@ function App() {
         </div>
 
         {goldPrice && !loading && (
-          <p className="last-updated">Last updated: {new Date().toLocaleTimeString()}</p>
+          <p className="last-updated">
+            Last updated: {lastFetchTime ? lastFetchTime.toLocaleTimeString() : '—'}
+            {autoRefresh && ' • Auto-refreshes every 5 min'}
+          </p>
         )}
 
-        <button
-          className="refresh-btn"
-          onClick={fetchPrices}
-          disabled={loading}
-        >
-          {loading ? 'Refreshing...' : '🔄 Refresh Prices'}
-        </button>
+        <div className="refresh-row">
+          <button
+            className="refresh-btn"
+            onClick={fetchPrices}
+            disabled={loading}
+          >
+            {loading ? 'Refreshing...' : '🔄 Refresh Prices'}
+          </button>
+          <label className="auto-refresh-toggle">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+            />
+            Auto-refresh
+          </label>
+        </div>
+
+        {/* Price Movement Chart */}
+        {history.length >= 2 && (
+          <section className="chart-section">
+            <h2>Price Movement</h2>
+            <div className="chart-controls">
+              <div className="chart-tabs">
+                {['day', 'week', 'month', 'year'].map(p => (
+                  <button
+                    key={p}
+                    className={`chart-tab ${chartPeriod === p ? 'active' : ''}`}
+                    onClick={() => setChartPeriod(p)}
+                  >{p.charAt(0).toUpperCase() + p.slice(1)}</button>
+                ))}
+              </div>
+              <div className="chart-tabs">
+                <button
+                  className={`chart-tab ${chartCurrency === 'USD' ? 'active' : ''}`}
+                  onClick={() => setChartCurrency('USD')}
+                >USD</button>
+                <button
+                  className={`chart-tab ${chartCurrency === 'INR' ? 'active' : ''}`}
+                  onClick={() => setChartCurrency('INR')}
+                >INR</button>
+              </div>
+            </div>
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                  <XAxis
+                    dataKey="time"
+                    stroke="#888"
+                    tick={{ fontSize: 11, fill: '#888' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="gold"
+                    stroke="#ffd700"
+                    tick={{ fontSize: 11, fill: '#ffd700' }}
+                    tickLine={false}
+                    tickFormatter={(v) => chartCurrency === 'USD' ? `$${(v/1000).toFixed(0)}k` : `₹${(v/100000).toFixed(0)}L`}
+                    label={{ value: 'Gold', angle: -90, position: 'insideLeft', fill: '#ffd700', fontSize: 12 }}
+                  />
+                  <YAxis
+                    yAxisId="silver"
+                    orientation="right"
+                    stroke="#c0c0c0"
+                    tick={{ fontSize: 11, fill: '#c0c0c0' }}
+                    tickLine={false}
+                    tickFormatter={(v) => chartCurrency === 'USD' ? `$${v.toFixed(0)}` : `₹${(v/1000).toFixed(0)}k`}
+                    label={{ value: 'Silver', angle: 90, position: 'insideRight', fill: '#c0c0c0', fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 8 }}
+                    labelStyle={{ color: '#ffd700' }}
+                    formatter={(value, name) => [
+                      chartCurrency === 'USD' ? `$${Number(value).toFixed(2)}` : `₹${Number(value).toFixed(2)}`,
+                      name
+                    ]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Line yAxisId="gold" type="monotone" dataKey="gold" stroke="#ffd700" strokeWidth={2} dot={{ r: 4, fill: '#ffd700' }} activeDot={{ r: 6 }} />
+                  <Line yAxisId="silver" type="monotone" dataKey="silver" stroke="#c0c0c0" strokeWidth={2} dot={{ r: 4, fill: '#c0c0c0' }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        )}
 
         <section className="history">
           <h2>Price History</h2>
