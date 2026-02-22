@@ -128,10 +128,10 @@ function App() {
     const now = new Date()
     let cutoff
     switch (chartPeriod) {
-      case '1D': cutoff = new Date(now - 24 * 60 * 60 * 1000); break
-      case '1W': cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000); break
-      case '1M': cutoff = new Date(now - 30 * 24 * 60 * 60 * 1000); break
-      case '3M': cutoff = new Date(now - 90 * 24 * 60 * 60 * 1000); break
+      case '1D': cutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000); break
+      case '1W': cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break
+      case '1M': cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break
+      case '3M': cutoff = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break
       default: cutoff = new Date(0)
     }
 
@@ -142,18 +142,22 @@ function App() {
     return [...history]
       .reverse()
       .filter(entry => {
-        const d = new Date(entry.timestamp || entry.date)
+        const ts = entry.timestamp
+        if (!ts) return false
+        const d = new Date(ts)
         return !isNaN(d.getTime()) && d >= cutoff
       })
       .map(entry => {
-        const d = new Date(entry.timestamp || entry.date)
+        const d = new Date(entry.timestamp)
         let label
         if (chartPeriod === '1D') {
-          label = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          label = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
         } else if (chartPeriod === '1W') {
-          label = d.toLocaleDateString('en-US', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+          label = d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+        } else if (chartPeriod === '1M') {
+          label = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
         } else {
-          label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
         }
         return { time: label, value: Number(entry[field]) }
       })
