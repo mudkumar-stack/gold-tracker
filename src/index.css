@@ -1,13 +1,51 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0a0c15;
+  --surface:   #11141f;
+  --card:      #171b2d;
+  --card2:     #1d2235;
+  --border:    #252a40;
+  --border2:   #2e344f;
+  --primary:   #7c6ff7;
+  --primary2:  #9b91f8;
+  --gain:      #00d17c;
+  --loss:      #ff4757;
+  --gold:      #ffd700;
+  --silver:    #a0a0c0;
+  --text:      #e2e4ef;
+  --text2:     #9196b0;
+  --text3:     #5c6080;
+  --radius:    12px;
+  --radius2:   8px;
+  --shadow:    0 4px 24px rgba(0,0,0,0.4);
+  --shadow2:   0 2px 8px rgba(0,0,0,0.3);
+  --transition: 0.18s ease;
 }
+
+html { font-size: 15px; }
 
 body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.5;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
-#root {
-  min-height: 100vh;
-}
+#root { min-height: 100vh; }
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { cursor: pointer; border: none; outline: none; font-family: inherit; }
+input { font-family: inherit; }
+code { font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.85em; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.gain    { color: var(--gain) !important; }
+.loss    { color: var(--loss) !important; }
+.neutral { color: var(--text2) !important; }
